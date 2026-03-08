@@ -337,6 +337,7 @@ Transform:
   m_Children:
   - {fileID: 209195229}
   - {fileID: 585228451}
+  - {fileID: 285893306}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &73066230
@@ -351,15 +352,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 155b9179f71eff74aadbb192898878c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  currentNode: {fileID: 1058990528}
+  maxHealth: 3
   moveSpeed: 5
   projectilePrefab: {fileID: 7139303456639637390, guid: 8903249069ae0224eb9fd5f34de3109d, type: 3}
-  projectileSpeed: 12
-  baseDamage: 1
+  firePoint: {fileID: 285893306}
+  minDamage: 5
+  maxDamage: 7
+  critChance: 10
   pierceCount: 0
-  damageMultiplier: 1
   projectilesPerShot: 1
-  maxHealth: 3
+  damageMultiplier: 1
+  spreadAngle: 5
+  projectileSpeed: 12
+  currentNode: {fileID: 1058990528}
 --- !u!58 &73066231
 CircleCollider2D:
   m_ObjectHideFlags: 0
@@ -570,6 +575,37 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!1 &285893305
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 285893306}
+  m_Layer: 0
+  m_Name: FirePoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &285893306
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 285893305}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 73066229}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &318269461
 GameObject:
   m_ObjectHideFlags: 0
@@ -3598,6 +3634,7 @@ GameObject:
   - component: {fileID: 1572201743}
   - component: {fileID: 1572201745}
   - component: {fileID: 1572201744}
+  - component: {fileID: 1572201746}
   m_Layer: 5
   m_Name: LevelUpHint Text
   m_TagString: Untagged
@@ -3725,6 +3762,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1572201742}
   m_CullTransparentMesh: 1
+--- !u!114 &1572201746
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1572201742}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40e61ba7b4dad8d41ae157bf50000e95, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FloatingUI
+  amplitude: 10
+  speed: 2
 --- !u!1 &1580797302
 GameObject:
   m_ObjectHideFlags: 0
@@ -4892,6 +4943,7 @@ MonoBehaviour:
   - {fileID: 1134753248}
   - {fileID: 1345081334}
   - {fileID: 31662609}
+  levelUpHintText: {fileID: 1572201742}
 --- !u!114 &2083395723
 MonoBehaviour:
   m_ObjectHideFlags: 0

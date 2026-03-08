@@ -16,6 +16,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private GameObject projectilePrefab;
     [SerializeField] private Transform firePoint;
     
+    [Header("Combat Stats")]
+    public int minDamage = 5;
+    public int maxDamage = 7;
+    [Range(0, 100)]
+    public float critChance = 10f; // 10% шанс крита
+    
     // Переменные для системы улучшений
     public int pierceCount = 0; 
     public int projectilesPerShot = 1;
@@ -68,7 +74,6 @@ public class PlayerController : MonoBehaviour
     {
         if (target == null || _isDead) return;
 
-        // Логика Мультишота
         for (int i = 0; i < projectilesPerShot; i++)
         {
             GameObject projGo = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
@@ -76,15 +81,20 @@ public class PlayerController : MonoBehaviour
 
             if (proj != null)
             {
+                // Расчет урона
+                int baseDamage = Random.Range(minDamage, maxDamage + 1);
+                bool isCrit = Random.value * 100f < critChance;
+                int finalDamage = isCrit ? baseDamage * 2 : baseDamage;
+
                 proj.speed = projectileSpeed;
                 proj.pierceCount = pierceCount;
-                
-                // Настройка урона снаряда (если в Projectile есть поле damage)
-                // proj.damage = Mathf.RoundToInt(baseDamage * damageMultiplier);
+            
+                // Передаем урон и флаг крита в снаряд
+                proj.damage = finalDamage;
+                proj.isCrit = isCrit;
 
                 if (projectilesPerShot > 1)
                 {
-                    // Создаем веер: распределяем пули симметрично относительно центра
                     float angleOffset = (i - (projectilesPerShot - 1) / 2f) * spreadAngle;
                     proj.transform.Rotate(0, 0, angleOffset);
                 }

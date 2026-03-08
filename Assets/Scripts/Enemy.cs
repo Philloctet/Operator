@@ -5,12 +5,16 @@ using System.Collections;
 public class Enemy : MonoBehaviour, ITypable
 {
     [Header("Stats")]
+    public int maxHp = 20;
+    private int _currentHp;
     public float moveSpeed = 1.5f;
     public int xpReward = 20;
     public int scoreReward = 100;
 
-    [Header("UI")]
+    [Header("UI & Visuals")]
     [SerializeField] private TMP_Text wordDisplay;
+    [SerializeField] private HealthBar healthBar;          // Ссылка на Хелсбар
+    [SerializeField] private GameObject damagePopupPrefab; // Префаб цифр урона
     [SerializeField] private Color normalColor = Color.white;
     [SerializeField] private Color highlightColor = Color.red;
 
@@ -20,14 +24,18 @@ public class Enemy : MonoBehaviour, ITypable
 
     void Start()
     {
+        _currentHp = maxHp;
         _rb = GetComponent<Rigidbody2D>();
+        
+        // ПУНКТ 1: Изначально выключаем хелсбар
+        if (healthBar != null) healthBar.Hide();
+        
         GenerateNewWord();
         TypingManager.Instance.RegisterTypable(this);
     }
 
     void FixedUpdate()
     {
-        // Враг движется, только если он не "фантом"
         if (!_isDying && PlayerController.Instance != null && !PlayerController.Instance.IsDead())
         {
             Vector2 playerPos = PlayerController.Instance.transform.position;
@@ -44,26 +52,43 @@ public class Enemy : MonoBehaviour, ITypable
         }
     }
 
-    // Вызывается СНАРЯДОМ при попадании
-    public void TakeHit()
+    // ВЫЗЫВАЕТСЯ ИЗ PROJECTILE ПРИ ПОПАДАНИИ
+    public void TakeDamage(int amount, bool isCrit)
     {
         if (_isDying) return;
 
-        // Если игрок сейчас печатает СЛЕДУЮЩЕЕ слово этого врага
-        if (IsBeingTypedByPlayer())
+        _currentHp -= amount;
+
+        // ПУНКТ 1: Включаем и обновляем хелсбар при уроне
+        if (healthBar != null)
         {
-            EnterPhantomMode();
+            healthBar.UpdateHealth(_currentHp, maxHp);
         }
-        else
+
+        // ПУНКТ 2: Создаем вылетающие цифры урона
+        if (damagePopupPrefab != null)
         {
-            InstantDie();
+            GameObject popup = Instantiate(damagePopupPrefab, transform.position + Vector3.up, Quaternion.identity);
+            if (popup.TryGetComponent<DamagePopup>(out var popupScript))
+            {
+                popupScript.Setup(amount, isCrit);
+            }
+        }
+
+        // Если ХП кончилось — проверяем, убить сразу или сделать фантомом
+        if (_currentHp <= 0) 
+        {
+            // ПУНКТ 1: Убираем хелсбар, так как враг умер
+            if (healthBar != null) healthBar.Hide();
+            
+            if (IsBeingTypedByPlayer()) EnterPhantomMode();
+            else InstantDie();
         }
     }
 
     private void EnterPhantomMode()
     {
         _isDying = true;
-        // Отключаем физику и спрайты, но текст ОСТАВЛЯЕМ
         if (TryGetComponent<Collider2D>(out var col)) col.enabled = false;
         var renderers = GetComponentsInChildren<SpriteRenderer>();
         foreach (var r in renderers) r.enabled = false;
@@ -73,20 +98,17 @@ public class Enemy : MonoBehaviour, ITypable
 
     private IEnumerator PhantomFocusRoutine()
     {
-        // Пока игрок держит фокус на этом "фантомном" слове
         while (_isDying && IsBeingTypedByPlayer())
         {
             yield return null;
         }
-
-        // Если передумал или закончил - удаляем окончательно
         if (this != null) InstantDie();
     }
 
     private void InstantDie()
     {
         StopAllCoroutines();
-        if (ProgressionManager.Instance != null && !_isDying) // Если убит физически
+        if (ProgressionManager.Instance != null && !_isDying) 
         {
             ProgressionManager.Instance.AddXP(xpReward);
             ProgressionManager.Instance.AddScore(scoreReward);
@@ -127,26 +149,22 @@ public class Enemy : MonoBehaviour, ITypable
         wordDisplay.text = $"<color=#{ColorUtility.ToHtmlStringRGB(highlightColor)}>{typed}</color>{remaining}";
     }
 
-    public void OnReset() => wordDisplay.text = _currentWord;
+    public void OnReset()
+    {
+        if (wordDisplay != null)
+        {
+            wordDisplay.text = _currentWord;
+            wordDisplay.color = normalColor;
+        }
+    }
 
     public void OnComplete()
     {
-        // 1. Считаем завершенное слово для комбо/WPM
         ProgressionManager.Instance.RegisterCompletedWord(_currentWord);
-        
-        // 2. Стреляем в текущую позицию врага (даже если он станет фантомом, пуля полетит туда)
         PlayerController.Instance.FireAt(this);
 
-        // 3. Если враг еще жив (не стал фантомом), просто даем ему НОВОЕ слово
-        if (!_isDying)
-        {
-            GenerateNewWord();
-        }
-        else
-        {
-            // Если мы уже были фантомом и допечатали слово - исчезаем
-            InstantDie();
-        }
+        if (!_isDying) GenerateNewWord();
+        else InstantDie();
     }
 
     public Transform GetTransform() => transform;
