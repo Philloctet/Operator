@@ -27,6 +27,7 @@ public class ProgressionManager : MonoBehaviour
     [Header("UI References")]
     public GameObject upgradePanel;
     public List<UpgradeCardUI> upgradeCards;
+    public GameObject levelUpHintText; 
 
     private bool _isLevelUpPending = false;
 
@@ -91,17 +92,30 @@ public class ProgressionManager : MonoBehaviour
     public void AddXP(int amount)
     {
         currentXP += amount;
-        if (currentXP >= xpToNextLevel) _isLevelUpPending = true;
+        if (currentXP >= xpToNextLevel) 
+        {
+            _isLevelUpPending = true;
+        
+            // ВКЛЮЧАЕМ подсказку над игроком
+            if (levelUpHintText != null)
+                levelUpHintText.SetActive(true);
+        }
     }
 
     private void ShowUpgradeMenu()
     {
         _isLevelUpPending = false;
+        if (levelUpHintText != null) levelUpHintText.SetActive(false);
+
         Time.timeScale = 0f;
+    
         if (upgradePanel != null)
         {
             upgradePanel.SetActive(true);
-            TypingManager.Instance.ResetAll();
+        
+            // ВКЛЮЧАЕМ режим меню в менеджере печати
+            TypingManager.Instance.SetMenuMode(true); 
+
             foreach (var card in upgradeCards) card.SetupRandomUpgrade();
         }
     }
@@ -109,6 +123,10 @@ public class ProgressionManager : MonoBehaviour
     public void CompleteUpgrade()
     {
         if (upgradePanel != null) upgradePanel.SetActive(false);
+
+        // ВЫКЛЮЧАЕМ режим меню, возвращаемся к бою
+        TypingManager.Instance.SetMenuMode(false); 
+
         currentXP -= xpToNextLevel;
         currentLevel++;
         xpToNextLevel = Mathf.RoundToInt(xpToNextLevel * 1.2f);

@@ -8,6 +8,7 @@ public class TypingManager : MonoBehaviour
     public static TypingManager Instance;
 
     private string _currentBuffer = "";
+    private bool _isMenuMode = false;
     private List<ITypable> _activeTypables = new List<ITypable>();
 
     void Awake()
@@ -26,6 +27,12 @@ public class TypingManager : MonoBehaviour
     {
         if (Keyboard.current != null)
             Keyboard.current.onTextInput -= OnTextInput;
+    }
+    
+    public void SetMenuMode(bool active)
+    {
+        _isMenuMode = active;
+        ResetAll(); // Сбрасываем текущий буфер при переключении
     }
 
     // МЕТОДЫ РЕГИСТРАЦИИ (Добавь их сюда)
@@ -57,20 +64,32 @@ public class TypingManager : MonoBehaviour
     {
         string newBuffer = _currentBuffer + c;
     
-        var candidates = _activeTypables
-            .Where(t => t != null && !string.IsNullOrEmpty(t.GetWord()) && t.GetWord().StartsWith(newBuffer))
+        // Фильтруем список активных целей в зависимости от режима
+        var candidates = _activeTypables.Where(t => {
+            if (t == null) return false;
+        
+            // Если мы в меню, игнорируем всё, кроме UpgradeCardUI
+            if (_isMenuMode) return t is UpgradeCardUI;
+        
+            // Если мы в игре, игнорируем карточки (на всякий случай)
+            return !(t is UpgradeCardUI);
+        }).ToList();
+
+        // Дальше идет стандартная логика поиска по буквам внутри отфильтрованных кандидатов
+        var finalCandidates = candidates
+            .Where(t => !string.IsNullOrEmpty(t.GetWord()) && t.GetWord().StartsWith(newBuffer))
             .ToList();
 
-        if (candidates.Count > 0)
+        if (finalCandidates.Count > 0)
         {
             _currentBuffer = newBuffer;
-            UpdateCandidates(candidates);
-            // ЗДЕСЬ БОЛЬШЕ НЕТ RegisterCorrectChar()
+            UpdateCandidates(finalCandidates);
         }
         else
         {
-            var newCandidates = _activeTypables
-                .Where(t => t != null && !string.IsNullOrEmpty(t.GetWord()) && t.GetWord().StartsWith(c.ToString()))
+            // Умный сброс (также с фильтрацией)
+            var newCandidates = candidates
+                .Where(t => !string.IsNullOrEmpty(t.GetWord()) && t.GetWord().StartsWith(c.ToString()))
                 .ToList();
         
             if (newCandidates.Count > 0)
@@ -78,12 +97,12 @@ public class TypingManager : MonoBehaviour
                 ResetAll();
                 _currentBuffer = c.ToString();
                 UpdateCandidates(newCandidates);
-                // ЗДЕСЬ БОЛЬШЕ НЕТ RegisterCorrectChar()
             }
             else
             {
                 ResetAll();
-                ProgressionManager.Instance.RegisterMistake(); // Ошибка всё еще сбрасывает комбо
+                // Ошибку в ProgressionManager шлем только если мы НЕ в меню
+                if (!_isMenuMode) ProgressionManager.Instance.RegisterMistake();
             }
         }
 
