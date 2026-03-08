@@ -2,46 +2,54 @@ using UnityEngine;
 
 public class Projectile : MonoBehaviour
 {
-    private float _speed;
-    private int _damage;
-    private int _pierceCount;
-    private Vector3 _direction;
+    [Header("Settings")]
+    public float speed = 10f;
+    public int damage = 1;
+    public float lifeTime = 5f;
 
-    public void Setup(Vector3 direction, float speed, int damage, int pierce)
+    [Header("Abilities")]
+    public int pierceCount = 0; // Сколько врагов пуля может пробить насквозь
+
+    private Transform _target;
+    private Vector2 _direction;
+    private bool _isInitialized = false;
+
+    /// <summary>
+    /// Инициализация полета снаряда в сторону врага
+    /// </summary>
+    public void Launch(Transform target)
     {
-        _direction = direction.normalized;
-        _speed = speed;
-        _damage = damage;
-        _pierceCount = pierce;
+        if (target != null)
+        {
+            // ПРАВИЛЬНАЯ ФОРМУЛА: Куда (цель) МИНУС Откуда (пуля)
+            Vector3 dir = target.position - transform.position;
+            _direction = new Vector2(dir.x, dir.y).normalized;
 
-        // Поворот снаряда по направлению полета
-        float angle = Mathf.Atan2(_direction.y, _direction.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+            // Поворачиваем сам спрайт пули в сторону полета
+            float angle = Mathf.Atan2(_direction.y, _direction.x) * Mathf.Rad2Deg;
+            transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+            
+            _isInitialized = true;
+        }
 
-        // Самоуничтожение через 5 секунд, если снаряд улетел за экран
-        Destroy(gameObject, 5f);
+        Destroy(gameObject, lifeTime);
     }
 
     void Update()
     {
-        transform.position += _direction * _speed * Time.deltaTime;
+        if (!_isInitialized) return;
+
+        // Используем движение в мировом пространстве через direction
+        transform.position += (Vector3)_direction * speed * Time.deltaTime;
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // Проверяем, попали ли мы во врага
         if (collision.TryGetComponent<Enemy>(out Enemy enemy))
         {
-            enemy.TakeDamage(_damage);
-
-            if (_pierceCount <= 0)
-            {
-                Destroy(gameObject);
-            }
-            else
-            {
-                _pierceCount--;
-            }
+            enemy.TakeHit();
+            if (pierceCount <= 0) Destroy(gameObject);
+            else pierceCount--;
         }
     }
 }

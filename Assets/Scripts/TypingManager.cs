@@ -7,11 +7,11 @@ public class TypingManager : MonoBehaviour
 {
     public static TypingManager Instance;
 
+    private List<ITypable> _activeTypables = new List<ITypable>();
     private string _currentBuffer = "";
     private bool _isMenuMode = false;
-    private List<ITypable> _activeTypables = new List<ITypable>();
 
-    void Awake()
+    private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
@@ -19,6 +19,7 @@ public class TypingManager : MonoBehaviour
 
     private void OnEnable()
     {
+        // Подписка на ввод символов через New Input System
         if (Keyboard.current != null)
             Keyboard.current.onTextInput += OnTextInput;
     }
@@ -28,80 +29,69 @@ public class TypingManager : MonoBehaviour
         if (Keyboard.current != null)
             Keyboard.current.onTextInput -= OnTextInput;
     }
-    
+
+    public void RegisterTypable(ITypable typable) => _activeTypables.Add(typable);
+    public void UnregisterTypable(ITypable typable) => _activeTypables.Remove(typable);
+
+    // Метод, который запрашивает Enemy для проверки режима фантома
+    public string GetCurrentBuffer() => _currentBuffer;
+
     public void SetMenuMode(bool active)
     {
         _isMenuMode = active;
-        ResetAll(); // Сбрасываем текущий буфер при переключении
-    }
-
-    // МЕТОДЫ РЕГИСТРАЦИИ (Добавь их сюда)
-    public void RegisterTypable(ITypable typable)
-    {
-        if (!_activeTypables.Contains(typable))
-        {
-            _activeTypables.Add(typable);
-        }
-    }
-
-    public void UnregisterTypable(ITypable typable)
-    {
-        if (_activeTypables.Contains(typable))
-        {
-            _activeTypables.Remove(typable);
-        }
+        ResetAll();
     }
 
     private void OnTextInput(char ch)
     {
+        // Игнорируем управляющие символы (Esc, Enter и т.д.)
         if (char.IsControl(ch)) return;
-
-        char upperChar = char.ToUpper(ch);
-        ProcessChar(upperChar);
+        ProcessChar(char.ToUpper(ch));
     }
 
     private void ProcessChar(char c)
     {
+        // ПУНКТ №2: Санитарная очистка списка от битых ссылок
+        // Удаляем все элементы, которые стали null или у которых уничтожен Transform
+        _activeTypables.RemoveAll(t => t == null || t.GetTransform() == null);
+
         string newBuffer = _currentBuffer + c;
-    
-        // Фильтруем список активных целей в зависимости от режима
-        var candidates = _activeTypables.Where(t => {
-            if (t == null) return false;
-        
-            // Если мы в меню, игнорируем всё, кроме UpgradeCardUI
+
+        // Фильтруем цели в зависимости от режима (Бой или Меню)
+        var candidates = _activeTypables.Where(t => 
+        {
             if (_isMenuMode) return t is UpgradeCardUI;
-        
-            // Если мы в игре, игнорируем карточки (на всякий случай)
             return !(t is UpgradeCardUI);
         }).ToList();
 
-        // Дальше идет стандартная логика поиска по буквам внутри отфильтрованных кандидатов
-        var finalCandidates = candidates
+        // Ищем совпадения по введенным буквам
+        var matches = candidates
             .Where(t => !string.IsNullOrEmpty(t.GetWord()) && t.GetWord().StartsWith(newBuffer))
             .ToList();
 
-        if (finalCandidates.Count > 0)
+        if (matches.Count > 0)
         {
+            // Успешный ввод буквы
             _currentBuffer = newBuffer;
-            UpdateCandidates(finalCandidates);
+            UpdateCandidates(matches);
         }
         else
         {
-            // Умный сброс (также с фильтрацией)
-            var newCandidates = candidates
+            // Умный перенос: проверяем, не является ли буква началом ДРУГОГО слова
+            var newMatches = candidates
                 .Where(t => !string.IsNullOrEmpty(t.GetWord()) && t.GetWord().StartsWith(c.ToString()))
                 .ToList();
-        
-            if (newCandidates.Count > 0)
+
+            if (newMatches.Count > 0)
             {
                 ResetAll();
                 _currentBuffer = c.ToString();
-                UpdateCandidates(newCandidates);
+                UpdateCandidates(newMatches);
             }
             else
             {
+                // Полная ошибка
                 ResetAll();
-                // Ошибку в ProgressionManager шлем только если мы НЕ в меню
                 if (!_isMenuMode) ProgressionManager.Instance.RegisterMistake();
             }
         }
@@ -109,30 +99,36 @@ public class TypingManager : MonoBehaviour
         CheckCompletion();
     }
 
-    private void UpdateCandidates(List<ITypable> candidates)
+    private void UpdateCandidates(List<ITypable> matches)
     {
-        foreach (var t in _activeTypables)
+        // Сбрасываем всех, кто не попал в новый список совпадений
+        foreach (var typable in _activeTypables)
         {
-            if (t == null) continue;
+            if (!matches.Contains(typable)) typable.OnReset();
+        }
 
-            if (candidates.Contains(t))
-                t.OnCharTyped(_currentBuffer.Length);
-            else
-                t.OnReset();
+        // Подсвечиваем прогресс у актуальных кандидатов
+        foreach (var match in matches)
+        {
+            match.OnCharTyped(_currentBuffer.Length);
         }
     }
 
     private void CheckCompletion()
     {
-        var completed = _activeTypables.FirstOrDefault(t => 
-            t != null && 
-            !string.IsNullOrEmpty(_currentBuffer) && 
-            t.GetWord() == _currentBuffer);
+        // Ищем объекты, чьи слова полностью совпадают с буфером
+        var completed = _activeTypables
+            .Where(t => t != null && t.GetWord() == _currentBuffer)
+            .ToList();
 
-        if (completed != null)
+        foreach (var t in completed)
+        {
+            t.OnComplete();
+        }
+
+        if (completed.Count > 0)
         {
             ResetAll();
-            completed.OnComplete();
         }
     }
 

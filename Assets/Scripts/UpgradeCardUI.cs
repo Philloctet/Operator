@@ -23,7 +23,7 @@ public class UpgradeCardUI : MonoBehaviour, ITypable
             _ => "Generic Upgrade"
         };
 
-        // Берем слово из пула улучшений
+        // Получаем слово. Убедитесь, что WordProvider инициализирован!
         _word = WordProvider.Instance.GetUniqueWord(WordType.Upgrade);
         if (wordDisplay != null) wordDisplay.text = _word;
         
@@ -49,9 +49,13 @@ public class UpgradeCardUI : MonoBehaviour, ITypable
     public void OnComplete()
     {
         ApplyEffect();
-        WordProvider.Instance.ReleaseWord(_word);
+        
+        if (WordProvider.Instance != null)
+            WordProvider.Instance.ReleaseWord(_word);
+            
         TypingManager.Instance.UnregisterTypable(this);
         
+        // Завершаем процесс улучшения через менеджер прогрессии
         ProgressionManager.Instance.CompleteUpgrade();
     }
 
@@ -62,9 +66,15 @@ public class UpgradeCardUI : MonoBehaviour, ITypable
 
         switch (_upgradeType)
         {
-            case 0: pc.projectilesPerShot++; break;
-            case 1: pc.pierceCount++; break;
-            case 2: pc.damageMultiplier += 0.2f; break;
+            case 0: 
+                pc.projectilesPerShot++; 
+                break;
+            case 1: 
+                pc.pierceCount++; 
+                break;
+            case 2: 
+                pc.damageMultiplier += 0.2f; 
+                break;
         }
     }
 

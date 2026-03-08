@@ -1,10 +1,10 @@
 using UnityEngine;
 using TMPro;
+using System.Collections;
 
 public class Enemy : MonoBehaviour, ITypable
 {
     [Header("Stats")]
-    public int hp = 1;
     public float moveSpeed = 1.5f;
     public int xpReward = 20;
     public int scoreReward = 100;
@@ -16,68 +16,77 @@ public class Enemy : MonoBehaviour, ITypable
 
     private string _currentWord;
     private Rigidbody2D _rb;
+    private bool _isDying = false; 
 
     void Start()
     {
         _rb = GetComponent<Rigidbody2D>();
-        
-        if (!SetNewWord())
-        {
-            Destroy(gameObject);
-            return;
-        }
-        
+        GenerateNewWord();
         TypingManager.Instance.RegisterTypable(this);
-        if (wordDisplay != null) wordDisplay.color = normalColor;
     }
 
-    void FixedUpdate() // Используем FixedUpdate для стабильного движения
+    void FixedUpdate()
     {
-        if (PlayerController.Instance != null && !PlayerController.Instance.IsDead())
+        // Враг движется, только если он не "фантом"
+        if (!_isDying && PlayerController.Instance != null && !PlayerController.Instance.IsDead())
         {
-            // Получаем позиции только в 2D (игнорируем Z)
-            Vector2 currentPos = transform.position;
             Vector2 playerPos = PlayerController.Instance.transform.position;
+            Vector2 newPos = Vector2.MoveTowards(transform.position, playerPos, moveSpeed * Time.fixedDeltaTime);
             
-            // Движение
-            Vector2 newPos = Vector2.MoveTowards(currentPos, playerPos, moveSpeed * Time.fixedDeltaTime);
-            
-            if (_rb != null)
-                _rb.MovePosition(newPos);
-            else
-                transform.position = newPos;
+            if (_rb != null) _rb.MovePosition(newPos);
+            else transform.position = newPos;
 
-            // Проверка дистанции для атаки (0.5f — радиус контакта)
-            if (Vector2.Distance(currentPos, playerPos) < 0.5f)
+            if (Vector2.Distance(transform.position, playerPos) < 0.5f)
             {
                 PlayerController.Instance.TakeDamage(1);
-                Die(false); 
+                InstantDie(); 
             }
         }
     }
 
-    private bool SetNewWord()
+    // Вызывается СНАРЯДОМ при попадании
+    public void TakeHit()
     {
-        if (!string.IsNullOrEmpty(_currentWord))
-            WordProvider.Instance.ReleaseWord(_currentWord);
+        if (_isDying) return;
 
-        _currentWord = WordProvider.Instance.GetUniqueWord(WordType.Enemy);
-        
-        if (string.IsNullOrEmpty(_currentWord)) return false;
-
-        if (wordDisplay != null) wordDisplay.text = _currentWord;
-        return true;
+        // Если игрок сейчас печатает СЛЕДУЮЩЕЕ слово этого врага
+        if (IsBeingTypedByPlayer())
+        {
+            EnterPhantomMode();
+        }
+        else
+        {
+            InstantDie();
+        }
     }
 
-    public void TakeDamage(int amount)
+    private void EnterPhantomMode()
     {
-        hp -= amount;
-        if (hp <= 0) Die(true);
+        _isDying = true;
+        // Отключаем физику и спрайты, но текст ОСТАВЛЯЕМ
+        if (TryGetComponent<Collider2D>(out var col)) col.enabled = false;
+        var renderers = GetComponentsInChildren<SpriteRenderer>();
+        foreach (var r in renderers) r.enabled = false;
+
+        StartCoroutine(PhantomFocusRoutine());
     }
 
-    private void Die(bool killedByPlayer)
+    private IEnumerator PhantomFocusRoutine()
     {
-        if (killedByPlayer && ProgressionManager.Instance != null)
+        // Пока игрок держит фокус на этом "фантомном" слове
+        while (_isDying && IsBeingTypedByPlayer())
+        {
+            yield return null;
+        }
+
+        // Если передумал или закончил - удаляем окончательно
+        if (this != null) InstantDie();
+    }
+
+    private void InstantDie()
+    {
+        StopAllCoroutines();
+        if (ProgressionManager.Instance != null && !_isDying) // Если убит физически
         {
             ProgressionManager.Instance.AddXP(xpReward);
             ProgressionManager.Instance.AddScore(scoreReward);
@@ -88,29 +97,56 @@ public class Enemy : MonoBehaviour, ITypable
         Destroy(gameObject);
     }
 
+    private void GenerateNewWord()
+    {
+        if (!string.IsNullOrEmpty(_currentWord))
+            WordProvider.Instance.ReleaseWord(_currentWord);
+
+        _currentWord = WordProvider.Instance.GetUniqueWord(WordType.Enemy);
+        if (wordDisplay != null) 
+        {
+            wordDisplay.text = _currentWord;
+            wordDisplay.color = normalColor;
+        }
+    }
+
+    private bool IsBeingTypedByPlayer()
+    {
+        string buffer = TypingManager.Instance.GetCurrentBuffer();
+        return !string.IsNullOrEmpty(buffer) && _currentWord.StartsWith(buffer);
+    }
+
+    // --- ITypable ---
     public string GetWord() => _currentWord;
 
     public void OnCharTyped(int index)
     {
-        if (string.IsNullOrEmpty(_currentWord) || wordDisplay == null) return;
-        
+        if (wordDisplay == null) return;
         string typed = _currentWord.Substring(0, index);
         string remaining = _currentWord.Substring(index);
         wordDisplay.text = $"<color=#{ColorUtility.ToHtmlStringRGB(highlightColor)}>{typed}</color>{remaining}";
     }
 
-    public void OnReset()
-    {
-        if (wordDisplay != null) wordDisplay.text = _currentWord;
-    }
+    public void OnReset() => wordDisplay.text = _currentWord;
 
     public void OnComplete()
     {
-        // Регистрируем завершенное слово для комбо и WPM
+        // 1. Считаем завершенное слово для комбо/WPM
         ProgressionManager.Instance.RegisterCompletedWord(_currentWord);
-    
+        
+        // 2. Стреляем в текущую позицию врага (даже если он станет фантомом, пуля полетит туда)
         PlayerController.Instance.FireAt(this);
-        if (!SetNewWord()) Die(false);
+
+        // 3. Если враг еще жив (не стал фантомом), просто даем ему НОВОЕ слово
+        if (!_isDying)
+        {
+            GenerateNewWord();
+        }
+        else
+        {
+            // Если мы уже были фантомом и допечатали слово - исчезаем
+            InstantDie();
+        }
     }
 
     public Transform GetTransform() => transform;

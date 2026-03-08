@@ -6,120 +6,61 @@ public class PlayerController : MonoBehaviour
 {
     public static PlayerController Instance;
 
-    [Header("Movement")]
-    public Node currentNode;
-    public float moveSpeed = 5f;
-    
-    [Header("Combat Stats")]
-    public GameObject projectilePrefab;
-    public float projectileSpeed = 12f;
-    public int baseDamage = 1;
-    public int pierceCount = 0;
-    public float damageMultiplier = 1f;
-    public int projectilesPerShot = 1;
-
-    [Header("Survival")]
-    public int maxHealth = 3;
+    [Header("Stats")]
+    [SerializeField] private int maxHealth = 3;
+    [SerializeField] private float moveSpeed = 5f;
     private int _currentHealth;
     private bool _isDead = false;
 
+    [Header("Combat Settings")]
+    [SerializeField] private GameObject projectilePrefab;
+    [SerializeField] private Transform firePoint;
+    
+    // Переменные для системы улучшений
+    public int pierceCount = 0; 
+    public int projectilesPerShot = 1;
+    public float damageMultiplier = 1.0f;
+    public float spreadAngle = 10f;
+    public float projectileSpeed = 10f;
+
+    [Header("Navigation")]
+    public Node currentNode;
     private bool _isMoving = false;
 
-    private void Awake()
+    void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
     }
 
-    private IEnumerator Start() // Замени void на IEnumerator
+    private IEnumerator Start()
     {
         _currentHealth = maxHealth;
 
         if (currentNode != null)
         {
             transform.position = currentNode.transform.position;
-        
-            // Ждем один кадр, чтобы все синглтоны (WordProvider, TypingManager) проснулись
             yield return null; 
-        
             UpdateAvailableNodes();
         }
         else
         {
-            Debug.LogError("PlayerController: Назначьте стартовую ноду!");
+            Debug.LogError("PlayerController: Назначьте стартовую ноду в инспекторе!");
         }
     }
 
-    public void TakeDamage(int amount)
+    void Update()
     {
-        if (_isDead) return;
-
-        _currentHealth -= amount;
-        Debug.Log($"Игрок получил урон! HP: {_currentHealth}");
-
-        // Здесь можно добавить эффект тряски камеры или вспышку экрана
-
-        if (_currentHealth <= 0)
+        if (_isMoving && currentNode != null)
         {
-            Die();
-        }
-    }
+            transform.position = Vector3.MoveTowards(transform.position, currentNode.transform.position, moveSpeed * Time.deltaTime);
 
-    private void Die()
-    {
-        _isDead = true;
-        Time.timeScale = 0f; 
-
-        // Вызываем визуальное окно через UIManager
-        if (UIManager.Instance != null && ProgressionManager.Instance != null)
-        {
-            UIManager.Instance.ShowGameOver(ProgressionManager.Instance.totalScore);
-        }
-    }
-
-    public void MoveToNode(Node targetNode)
-    {
-        if (_isMoving || _isDead) return;
-        StartCoroutine(MoveRoutine(targetNode));
-    }
-
-    private IEnumerator MoveRoutine(Node targetNode)
-    {
-        _isMoving = true;
-        ClearAvailableNodes();
-
-        Vector3 startPos = transform.position;
-        Vector3 endPos = targetNode.transform.position;
-        float progress = 0;
-
-        while (progress < 1f)
-        {
-            progress += Time.deltaTime * moveSpeed;
-            transform.position = Vector3.Lerp(startPos, endPos, progress);
-            yield return null;
-        }
-
-        transform.position = endPos;
-        currentNode = targetNode;
-        _isMoving = false;
-        UpdateAvailableNodes();
-    }
-
-    private void UpdateAvailableNodes()
-    {
-        if (currentNode == null || _isDead) return;
-        foreach (var neighbor in currentNode.neighbors)
-        {
-            if (neighbor != null) neighbor.SetTargetable(true);
-        }
-    }
-
-    private void ClearAvailableNodes()
-    {
-        if (currentNode == null) return;
-        foreach (var neighbor in currentNode.neighbors)
-        {
-            if (neighbor != null) neighbor.SetTargetable(false);
+            if (Vector3.Distance(transform.position, currentNode.transform.position) < 0.01f)
+            {
+                transform.position = currentNode.transform.position;
+                _isMoving = false;
+                UpdateAvailableNodes();
+            }
         }
     }
 
@@ -127,22 +68,72 @@ public class PlayerController : MonoBehaviour
     {
         if (target == null || _isDead) return;
 
-        if (projectilePrefab == null) return;
-
-        int finalDamage = Mathf.RoundToInt(baseDamage * damageMultiplier);
-
+        // Логика Мультишота
         for (int i = 0; i < projectilesPerShot; i++)
         {
-            GameObject projObj = Instantiate(projectilePrefab, transform.position, Quaternion.identity);
-            if (projObj.TryGetComponent<Projectile>(out Projectile proj))
+            GameObject projGo = Instantiate(projectilePrefab, firePoint.position, Quaternion.identity);
+            Projectile proj = projGo.GetComponent<Projectile>();
+
+            if (proj != null)
             {
-                Vector3 direction = target.transform.position - transform.position;
+                proj.speed = projectileSpeed;
+                proj.pierceCount = pierceCount;
+                
+                // Настройка урона снаряда (если в Projectile есть поле damage)
+                // proj.damage = Mathf.RoundToInt(baseDamage * damageMultiplier);
+
                 if (projectilesPerShot > 1)
                 {
-                    direction = Quaternion.Euler(0, 0, Random.Range(-15f, 15f)) * direction;
+                    // Создаем веер: распределяем пули симметрично относительно центра
+                    float angleOffset = (i - (projectilesPerShot - 1) / 2f) * spreadAngle;
+                    proj.transform.Rotate(0, 0, angleOffset);
                 }
-                proj.Setup(direction, projectileSpeed, finalDamage, pierceCount);
+
+                proj.Launch(target.transform);
             }
+        }
+    }
+
+    public void MoveToNode(Node targetNode)
+    {
+        if (_isMoving || _isDead) return;
+        DeactivateAllNeighbors();
+        currentNode = targetNode;
+        _isMoving = true;
+    }
+
+    private void UpdateAvailableNodes()
+    {
+        if (currentNode == null || _isDead) return;
+        foreach (Node neighbor in currentNode.neighbors)
+        {
+            if (neighbor != null) neighbor.SetTargetable(true);
+        }
+    }
+
+    private void DeactivateAllNeighbors()
+    {
+        if (currentNode == null) return;
+        foreach (Node neighbor in currentNode.neighbors)
+        {
+            if (neighbor != null) neighbor.SetTargetable(false);
+        }
+    }
+
+    public void TakeDamage(int amount)
+    {
+        if (_isDead) return;
+        _currentHealth -= amount;
+        if (_currentHealth <= 0) Die();
+    }
+
+    private void Die()
+    {
+        if (_isDead) return;
+        _isDead = true;
+        if (UIManager.Instance != null && ProgressionManager.Instance != null)
+        {
+            UIManager.Instance.ShowGameOver(ProgressionManager.Instance.totalScore);
         }
     }
 
