@@ -11,7 +11,6 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float moveSpeed = 5f;
     private int _currentHealth;
     private bool _isDead = false;
-    public bool hasTurretSkill = false;
     
     // НОВЫЙ ПАРАМЕТР ДЛЯ СКОРОСТИ
     public float moveSpeedMultiplier = 1.0f; 
@@ -37,6 +36,7 @@ public class PlayerController : MonoBehaviour
     [Header("Special Skills")]
     public bool hasCritSplit = false;
     public bool hasDashNova = false;
+    public bool hasTurretSkill = false;
     public float dashNovaCooldown = 5f; // Кулдаун способности 5 секунд (можешь менять)
     private float _dashNovaTimer = 0f;
 
@@ -72,12 +72,14 @@ public class PlayerController : MonoBehaviour
                 transform.position = currentNode.transform.position;
                 _isMoving = false;
                 UpdateAvailableNodes();
+                
+                // Сообщаем новой ноде, что мы пришли
+                currentNode.OnPlayerArrived();
 
-                // СРАБАТЫВАНИЕ НАВЫКА: Выстрелы во все стороны при прибытии
                 if (hasDashNova && _dashNovaTimer <= 0f)
                 {
                     FireDashNova();
-                    _dashNovaTimer = dashNovaCooldown; // Запускаем кулдаун
+                    _dashNovaTimer = dashNovaCooldown;
                 }
             }
         }
@@ -180,6 +182,10 @@ public class PlayerController : MonoBehaviour
     public void MoveToNode(Node targetNode)
     {
         if (_isMoving || _isDead) return;
+        
+        // Сообщаем старой ноде, что мы ушли
+        if (currentNode != null) currentNode.OnPlayerLeft(); 
+
         DeactivateAllNeighbors();
         currentNode = targetNode;
         _isMoving = true;

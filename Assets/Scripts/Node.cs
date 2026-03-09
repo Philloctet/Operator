@@ -12,6 +12,10 @@ public class Node : MonoBehaviour, ITypable
     [SerializeField] private TMP_Text wordDisplay; 
     [SerializeField] private Color normalColor = Color.white;
     [SerializeField] private Color highlightColor = Color.yellow;
+    
+    [Header("Buildings")]
+    public Transform buildingSpawnPoint; // Сюда перетащим пустой объект
+    [HideInInspector] public Turret currentBuilding;
 
     private string _currentWord;
     private bool _isTargetable = false;
@@ -90,6 +94,22 @@ public class Node : MonoBehaviour, ITypable
         ProgressionManager.Instance.RegisterCompletedWord(_currentWord);
     
         PlayerController.Instance.MoveToNode(this);
+    }
+    
+    public void OnPlayerArrived()
+    {
+        if (currentBuilding != null && !currentBuilding.isActive)
+        {
+            currentBuilding.EnableTyping();
+        }
+    }
+
+    public void OnPlayerLeft()
+    {
+        if (currentBuilding != null && !currentBuilding.isActive)
+        {
+            currentBuilding.DisableTyping();
+        }
     }
 
     public Transform GetTransform() => transform;

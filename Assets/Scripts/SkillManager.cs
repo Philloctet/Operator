@@ -115,10 +115,9 @@ public class SkillManager : MonoBehaviour
             case SkillCategory.DashNova:
                 pc.hasDashNova = true;
                 break;
-
-            // Эти мы реализуем на Этапах 3 и 4
+            
             case SkillCategory.Turret:
-                Debug.Log("Активирована спец. способность!");
+                pc.hasTurretSkill = true;
                 break;
         }
 
