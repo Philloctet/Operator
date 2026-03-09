@@ -3271,11 +3271,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8afb8a6f57f569041955fadda5dd0ed1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
-  enemyPrefab: {fileID: 7374183550452325571, guid: 60f1fcb68b02d4c4381cb600cb98eec5, type: 3}
+  enemies:
+  - name: Enemy Defualt
+    prefab: {fileID: 7374183550452325571, guid: 60f1fcb68b02d4c4381cb600cb98eec5, type: 3}
+    baseWeight: 100
+    weightGrowthPerMinute: -10
+  - name: Enemy Fast
+    prefab: {fileID: 7374183550452325571, guid: c8393d046117f9a499bbaedbcd26b751, type: 3}
+    baseWeight: 10
+    weightGrowthPerMinute: 10
+  - name: Enemy Fat
+    prefab: {fileID: 7374183550452325571, guid: 47007af6ca16a9144ae743688031843e, type: 3}
+    baseWeight: 0
+    weightGrowthPerMinute: 5
   spawnRadius: 10
   initialTimeBetweenSpawns: 3
   minSpawnTime: 0.5
-  difficultyIncreaseRate: 0.05
+  difficultyRampPerMinute: 0.5
 --- !u!4 &1281406987
 Transform:
   m_ObjectHideFlags: 0
