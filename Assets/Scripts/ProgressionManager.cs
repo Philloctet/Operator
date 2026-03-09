@@ -108,15 +108,29 @@ public class ProgressionManager : MonoBehaviour
         if (levelUpHintText != null) levelUpHintText.SetActive(false);
 
         Time.timeScale = 0f;
-    
+
         if (upgradePanel != null)
         {
             upgradePanel.SetActive(true);
-        
-            // ВКЛЮЧАЕМ режим меню в менеджере печати
             TypingManager.Instance.SetMenuMode(true); 
 
-            foreach (var card in upgradeCards) card.SetupRandomUpgrade();
+            // Запрашиваем 3 уникальных скилла
+            List<SkillData> rolledSkills = SkillManager.Instance.GetRandomSkills(3);
+
+            for (int i = 0; i < upgradeCards.Count; i++)
+            {
+                if (i < rolledSkills.Count && rolledSkills[i] != null)
+                {
+                    upgradeCards[i].gameObject.SetActive(true);
+                    // Используем новый метод SetupSkill
+                    upgradeCards[i].SetupSkill(rolledSkills[i]);
+                }
+                else
+                {
+                    // Если скиллы закончились (пул пуст), прячем лишние карточки
+                    upgradeCards[i].gameObject.SetActive(false); 
+                }
+            }
         }
     }
 

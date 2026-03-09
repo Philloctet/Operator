@@ -4,28 +4,40 @@ using TMPro;
 public class UpgradeCardUI : MonoBehaviour, ITypable
 {
     public TMP_Text titleText;
+    public TMP_Text descriptionText; // НОВОЕ: Поле для описания скилла
     public TMP_Text wordDisplay;
     
-    [Header("Colors")]
+    [Header("Rarity Colors")]
+    public Color commonColor = Color.white;
+    public Color rareColor = new Color(0.2f, 0.6f, 1f); // Голубой
+    public Color epicColor = new Color(0.8f, 0.2f, 1f); // Фиолетовый
     public Color highlightColor = Color.green;
 
     private string _word;
-    private int _upgradeType; // 0: Multishot, 1: Pierce, 2: Damage
+    private SkillData _currentSkill;
 
-    public void SetupRandomUpgrade()
+    public void SetupSkill(SkillData skill)
     {
-        _upgradeType = Random.Range(0, 3);
+        _currentSkill = skill;
         
-        titleText.text = _upgradeType switch {
-            0 => "+1 Projectile",
-            1 => "+1 Pierce",
-            2 => "+20% Total Damage",
-            _ => "Generic Upgrade"
+        // Заполняем тексты
+        titleText.text = skill.skillName;
+        if (descriptionText != null) descriptionText.text = skill.description;
+
+        // Красим заголовок (или фон) в цвет редкости
+        titleText.color = skill.rarity switch {
+            SkillRarity.Common => commonColor,
+            SkillRarity.Rare => rareColor,
+            SkillRarity.Epic => epicColor,
+            _ => commonColor
         };
 
-        // Получаем слово. Убедитесь, что WordProvider инициализирован!
         _word = WordProvider.Instance.GetUniqueWord(WordType.Upgrade);
-        if (wordDisplay != null) wordDisplay.text = _word;
+        if (wordDisplay != null) 
+        {
+            wordDisplay.text = _word;
+            wordDisplay.color = Color.white;
+        }
         
         TypingManager.Instance.RegisterTypable(this);
     }
@@ -35,7 +47,6 @@ public class UpgradeCardUI : MonoBehaviour, ITypable
     public void OnCharTyped(int index)
     {
         if (string.IsNullOrEmpty(_word) || wordDisplay == null) return;
-
         string typed = _word.Substring(0, index);
         string remaining = _word.Substring(index);
         wordDisplay.text = $"<color=#{ColorUtility.ToHtmlStringRGB(highlightColor)}>{typed}</color>{remaining}";
@@ -48,34 +59,12 @@ public class UpgradeCardUI : MonoBehaviour, ITypable
 
     public void OnComplete()
     {
-        ApplyEffect();
+        // Передаем скилл в менеджер для применения
+        SkillManager.Instance.ApplySkill(_currentSkill);
         
-        if (WordProvider.Instance != null)
-            WordProvider.Instance.ReleaseWord(_word);
-            
+        if (WordProvider.Instance != null) WordProvider.Instance.ReleaseWord(_word);
         TypingManager.Instance.UnregisterTypable(this);
-        
-        // Завершаем процесс улучшения через менеджер прогрессии
         ProgressionManager.Instance.CompleteUpgrade();
-    }
-
-    private void ApplyEffect()
-    {
-        var pc = PlayerController.Instance;
-        if (pc == null) return;
-
-        switch (_upgradeType)
-        {
-            case 0: 
-                pc.projectilesPerShot++; 
-                break;
-            case 1: 
-                pc.pierceCount++; 
-                break;
-            case 2: 
-                pc.damageMultiplier += 0.2f; 
-                break;
-        }
     }
 
     public Transform GetTransform() => transform;
