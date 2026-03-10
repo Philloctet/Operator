@@ -1,84 +1,20 @@
 using UnityEngine;
-using TMPro;
 using System.Collections;
 
-public class Turret : MonoBehaviour, ITypable
+public class Turret : NodeInteractable
 {
-    [Header("Settings")]
+    [Header("Turret Settings")]
     public float activeDuration = 10f;
     public float fireRate = 0.5f;
     public float attackRange = 10f;
-    
-    [Header("UI")]
-    [SerializeField] private TMP_Text wordDisplay;
-    [SerializeField] private Color normalColor = Color.cyan;
-    [SerializeField] private Color highlightColor = Color.yellow;
 
-    [HideInInspector] public bool isActive = false;
-    private string _currentWord;
-    private Node _myNode;
-
-    public void Setup(Node node)
+    // Переопределяем абстрактный метод из NodeInteractable.
+    // Он автоматически вызовется базовым классом, когда игрок допечатает слово.
+    protected override void ApplyReward()
     {
-        _myNode = node;
-        _myNode.currentBuilding = this;
-        if (wordDisplay != null) wordDisplay.gameObject.SetActive(false);
-    }
-
-    public void EnableTyping()
-    {
-        if (isActive) return;
-        
-        // Используем пул слов Upgrade (т.к. это интерактивный объект)
-        _currentWord = WordProvider.Instance.GetUniqueWord(WordType.Upgrade);
-        if (wordDisplay != null)
-        {
-            wordDisplay.gameObject.SetActive(true);
-            wordDisplay.text = _currentWord;
-            wordDisplay.color = normalColor;
-        }
-        TypingManager.Instance.RegisterTypable(this);
-    }
-
-    public void DisableTyping()
-    {
-        if (isActive) return;
-
-        TypingManager.Instance.UnregisterTypable(this);
-        if (!string.IsNullOrEmpty(_currentWord)) WordProvider.Instance.ReleaseWord(_currentWord);
-        
-        if (wordDisplay != null) wordDisplay.gameObject.SetActive(false);
-        _currentWord = "";
-    }
-
-    // --- Логика ITypable ---
-    public string GetWord() => _currentWord;
-
-    public void OnCharTyped(int index)
-    {
-        if (wordDisplay == null) return;
-        string typed = _currentWord.Substring(0, index);
-        string remaining = _currentWord.Substring(index);
-        wordDisplay.text = $"<color=#{ColorUtility.ToHtmlStringRGB(highlightColor)}>{typed}</color>{remaining}";
-    }
-
-    public void OnReset()
-    {
-        if (wordDisplay != null) wordDisplay.text = _currentWord;
-    }
-
-    public void OnComplete()
-    {
-        ProgressionManager.Instance.RegisterCompletedWord(_currentWord);
-        DisableTyping(); // Убираем слово из системы
-        
-        isActive = true;
         StartCoroutine(ShootingRoutine());
     }
 
-    public Transform GetTransform() => transform;
-
-    // --- Логика Стрельбы ---
     private IEnumerator ShootingRoutine()
     {
         float timer = activeDuration;
@@ -90,10 +26,14 @@ public class Turret : MonoBehaviour, ITypable
             timer -= fireRate;
         }
 
-        // Время вышло - уничтожаемся
-        _myNode.currentBuilding = null;
-        TurretManager.Instance.StartCooldown(); // Говорим менеджеру начать отсчет
-        Destroy(gameObject);
+        // Время вышло - сообщаем старому менеджеру начать отсчет
+        if (TurretManager.Instance != null)
+        {
+            TurretManager.Instance.StartCooldown(); 
+        }
+        
+        // Вызываем универсальный метод удаления из базового класса
+        Despawn(); 
     }
 
     private void ShootNearestEnemy()

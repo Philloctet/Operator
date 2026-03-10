@@ -2,7 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 
-public enum WordType { Enemy, Navigation, Upgrade }
+// Добавлен новый тип: Interactable
+public enum WordType { Enemy, Navigation, Upgrade, Interactable }
 
 public class WordProvider : MonoBehaviour
 {
@@ -12,10 +13,12 @@ public class WordProvider : MonoBehaviour
     [SerializeField] private TextAsset enemyWordsFile;
     [SerializeField] private TextAsset navWordsFile;
     [SerializeField] private TextAsset upgradeWordsFile;
+    [SerializeField] private TextAsset interactableWordsFile; // НОВОЕ ПОЛЕ для 5+ букв
 
     private List<string> _enemyPool = new List<string>();
     private List<string> _navPool = new List<string>();
     private List<string> _upgradePool = new List<string>();
+    private List<string> _interactablePool = new List<string>(); // Новый пул для строений
 
     private HashSet<string> _activeWords = new HashSet<string>();
 
@@ -32,6 +35,7 @@ public class WordProvider : MonoBehaviour
         LoadPool(_enemyPool, enemyWordsFile, "Enemy");
         LoadPool(_navPool, navWordsFile, "Navigation");
         LoadPool(_upgradePool, upgradeWordsFile, "Upgrade");
+        LoadPool(_interactablePool, interactableWordsFile, "Interactable"); // Загрузка новых слов
     }
 
     private void LoadPool(List<string> pool, TextAsset file, string poolName)
@@ -85,6 +89,7 @@ public class WordProvider : MonoBehaviour
             WordType.Enemy => _enemyPool,
             WordType.Navigation => _navPool,
             WordType.Upgrade => _upgradePool,
+            WordType.Interactable => _interactablePool, // Возвращаем пул строений
             _ => _enemyPool
         };
     }

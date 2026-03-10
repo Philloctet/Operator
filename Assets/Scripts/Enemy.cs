@@ -6,23 +6,24 @@ public class Enemy : MonoBehaviour, ITypable
 {
     [Header("Stats")]
     public int maxHp = 20;
-    private int _currentHp;
+    protected int _currentHp;
     public float moveSpeed = 1.5f;
     public int xpReward = 20;
-    public int scoreReward = 100;
+    public int scoreReward = 100; 
+    protected float _freezeTimer = 0f;
 
     [Header("UI & Visuals")]
-    [SerializeField] private TMP_Text wordDisplay;
-    [SerializeField] private HealthBar healthBar;          // Ссылка на Хелсбар
-    [SerializeField] private GameObject damagePopupPrefab; // Префаб цифр урона
-    [SerializeField] private Color normalColor = Color.white;
-    [SerializeField] private Color highlightColor = Color.red;
+    [SerializeField] protected TMP_Text wordDisplay;
+    [SerializeField] protected HealthBar healthBar;          // Ссылка на Хелсбар
+    [SerializeField] protected GameObject damagePopupPrefab; // Префаб цифр урона
+    [SerializeField] protected Color normalColor = Color.white;
+    [SerializeField] protected Color highlightColor = Color.red;
 
-    private string _currentWord;
-    private Rigidbody2D _rb;
-    private bool _isDying = false; 
+    protected string _currentWord;
+    protected Rigidbody2D _rb;
+    protected bool _isDying = false; 
 
-    void Start()
+    protected virtual void Start()
     {
         _currentHp = maxHp;
         _rb = GetComponent<Rigidbody2D>();
@@ -34,21 +35,30 @@ public class Enemy : MonoBehaviour, ITypable
         TypingManager.Instance.RegisterTypable(this);
     }
 
-    void FixedUpdate()
+    protected virtual void FixedUpdate()
     {
-        if (!_isDying && PlayerController.Instance != null && !PlayerController.Instance.IsDead())
-        {
-            Vector2 playerPos = PlayerController.Instance.transform.position;
-            Vector2 newPos = Vector2.MoveTowards(transform.position, playerPos, moveSpeed * Time.fixedDeltaTime);
-            
-            if (_rb != null) _rb.MovePosition(newPos);
-            else transform.position = newPos;
+        if (_isDying || PlayerController.Instance == null || PlayerController.Instance.IsDead()) return;
 
-            if (Vector2.Distance(transform.position, playerPos) < 0.5f)
-            {
-                PlayerController.Instance.TakeDamage(1);
-                InstantDie(); 
-            }
+        // Логика заморозки ЭМИ
+        if (_freezeTimer > 0)
+        {
+            _freezeTimer -= Time.fixedDeltaTime;
+            return; // Пропускаем логику движения (враг стоит на месте)
+        }
+
+        // Логика движения
+        Vector2 playerPos = PlayerController.Instance.transform.position;
+        Vector2 newPos = Vector2.MoveTowards(transform.position, playerPos, moveSpeed * Time.fixedDeltaTime);
+        
+        // Применяем позицию к физическому телу (ЭТИ СТРОКИ СКОРЕЕ ВСЕГО ПОТЕРЯЛИСЬ)
+        if (_rb != null) _rb.MovePosition(newPos);
+        else transform.position = newPos;
+
+        // Проверка на столкновение с игроком
+        if (Vector2.Distance(transform.position, playerPos) < 0.5f)
+        {
+            PlayerController.Instance.TakeDamage(1);
+            InstantDie(); 
         }
     }
 
@@ -165,6 +175,11 @@ public class Enemy : MonoBehaviour, ITypable
 
         if (!_isDying) GenerateNewWord();
         else InstantDie();
+    }
+    
+    public void Freeze(float duration)
+    {
+        _freezeTimer = duration;
     }
 
     public Transform GetTransform() => transform;

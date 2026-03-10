@@ -59,12 +59,25 @@ public class UpgradeCardUI : MonoBehaviour, ITypable
 
     public void OnComplete()
     {
-        // Передаем скилл в менеджер для применения
         SkillManager.Instance.ApplySkill(_currentSkill);
         
-        if (WordProvider.Instance != null) WordProvider.Instance.ReleaseWord(_word);
-        TypingManager.Instance.UnregisterTypable(this);
+        // Удалили старые строки отписки, оставляем только завершение
         ProgressionManager.Instance.CompleteUpgrade();
+    }
+    
+    private void OnDisable()
+    {
+        // Автоматически возвращаем слово в пул, когда карточка скрывается
+        if (!string.IsNullOrEmpty(_word) && WordProvider.Instance != null)
+        {
+            WordProvider.Instance.ReleaseWord(_word);
+            _word = ""; // Очищаем, чтобы не отписать дважды
+        }
+        
+        if (TypingManager.Instance != null)
+        {
+            TypingManager.Instance.UnregisterTypable(this);
+        }
     }
 
     public Transform GetTransform() => transform;

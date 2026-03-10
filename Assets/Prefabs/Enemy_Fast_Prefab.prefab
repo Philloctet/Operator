@@ -666,14 +666,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
   maxHp: 5
-  moveSpeed: 2
+  moveSpeed: 2.7
   xpReward: 25
   scoreReward: 150
   wordDisplay: {fileID: 2876010088832422306}
   healthBar: {fileID: 5567793807428784668}
   damagePopupPrefab: {fileID: 274597261681557345, guid: d2767c9fe7aa7e64997283f9b8ffffe3, type: 3}
   normalColor: {r: 1, g: 1, b: 1, a: 1}
-  highlightColor: {r: 1, g: 0, b: 0, a: 1}
+  highlightColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!58 &3427853422232839751
 CircleCollider2D:
   m_ObjectHideFlags: 0

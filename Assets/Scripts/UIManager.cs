@@ -43,7 +43,7 @@ public class UIManager : MonoBehaviour
 
         // Обновление комбо и множителя
         comboText.text = $"COMBO: {ProgressionManager.Instance.correctCharsInRow}";
-        multiplierText.text = $"x{ProgressionManager.Instance.scoreMultiplier:F1}";
+        multiplierText.text = $"MULTI: x{ProgressionManager.Instance.scoreMultiplier:F1}";
 
         // Эффект пульсации при изменении множителя
         if (ProgressionManager.Instance.scoreMultiplier > _lastMultiplier)

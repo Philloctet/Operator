@@ -108,6 +108,9 @@ public class ProgressionManager : MonoBehaviour
         if (levelUpHintText != null) levelUpHintText.SetActive(false);
 
         Time.timeScale = 0f;
+    
+        // Приглушаем музыку
+        if (AudioManager.Instance != null) AudioManager.Instance.SetUpgradeMusic(true);
 
         if (upgradePanel != null)
         {
@@ -144,6 +147,11 @@ public class ProgressionManager : MonoBehaviour
         currentXP -= xpToNextLevel;
         currentLevel++;
         xpToNextLevel = Mathf.RoundToInt(xpToNextLevel * 1.2f);
+        
+        // Возвращаем громкость
+        if (AudioManager.Instance != null) AudioManager.Instance.SetUpgradeMusic(false);
+    
         Time.timeScale = 1f;
+        
     }
 }

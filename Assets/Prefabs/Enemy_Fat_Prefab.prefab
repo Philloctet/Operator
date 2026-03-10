@@ -711,7 +711,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1aff04f96c3f371419547490c988e046, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
-  maxHp: 50
+  maxHp: 30
   moveSpeed: 0.5
   xpReward: 500
   scoreReward: 300
@@ -719,4 +719,4 @@ MonoBehaviour:
   healthBar: {fileID: 5567793807428784668}
   damagePopupPrefab: {fileID: 274597261681557345, guid: d2767c9fe7aa7e64997283f9b8ffffe3, type: 3}
   normalColor: {r: 1, g: 1, b: 1, a: 1}
-  highlightColor: {r: 1, g: 0, b: 0, a: 1}
+  highlightColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}

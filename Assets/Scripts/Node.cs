@@ -14,12 +14,18 @@ public class Node : MonoBehaviour, ITypable
     [SerializeField] private Color highlightColor = Color.yellow;
     
     [Header("Buildings")]
-    public Transform buildingSpawnPoint; // Сюда перетащим пустой объект
-    [HideInInspector] public Turret currentBuilding;
+    public Transform buildingSpawnPoint; 
+    [HideInInspector] public NodeInteractable currentBuilding;
 
     private string _currentWord;
     private bool _isTargetable = false;
 
+    void Start()
+    {
+        // Изначально выключаем текст на всех нодах при загрузке сцены
+        ClearNode();
+    }
+    
     // Метод активации узла
     public void SetTargetable(bool status)
     {
@@ -98,7 +104,8 @@ public class Node : MonoBehaviour, ITypable
     
     public void OnPlayerArrived()
     {
-        if (currentBuilding != null && !currentBuilding.isActive)
+        // Вызываем активацию, NodeInteractable сам проверит свое состояние
+        if (currentBuilding != null)
         {
             currentBuilding.EnableTyping();
         }
@@ -106,7 +113,8 @@ public class Node : MonoBehaviour, ITypable
 
     public void OnPlayerLeft()
     {
-        if (currentBuilding != null && !currentBuilding.isActive)
+        // Вызываем деактивацию, NodeInteractable сам проверит свое состояние
+        if (currentBuilding != null)
         {
             currentBuilding.DisableTyping();
         }

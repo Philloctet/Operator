@@ -28,6 +28,18 @@ public class PlayerController : MonoBehaviour
     public float projectileSpeed = 10f;
     public float burstDelay = 0.1f; // Задержка между пулями при мультишоте
     
+    [Header("Temporary Buff Settings")]
+    public float buffDamageBonus = 0.5f;  // +50% к урону во время баффа
+    public float buffSpeedBonus = 0.3f;   // +30% к скорости
+    public float buffCritBonus = 25f;     // +25% к шансу крита
+    
+    private float _buffTimer = 0f;
+    private float _buffDuration = 1f;     // Для расчета процентов в UI
+
+    [Header("Buff UI")]
+    public GameObject buffIconObject;     // Вся иконка (чтобы включать/выключать)
+    public UnityEngine.UI.Image buffTimerImage; // Сама картинка (для эффекта часиков)
+    
 
     [Header("Navigation")]
     public Node currentNode;
@@ -59,12 +71,32 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // Отсчитываем кулдаун для Dash Nova
+        // 1. Логика таймера баффа и UI
+        if (_buffTimer > 0)
+        {
+            _buffTimer -= Time.deltaTime;
+            if (buffTimerImage != null)
+            {
+                buffTimerImage.fillAmount = _buffTimer / _buffDuration;
+            }
+            
+            if (_buffTimer <= 0 && buffIconObject != null)
+            {
+                buffIconObject.SetActive(false); // Выключаем иконку, когда время вышло
+            }
+        }
+
+        // 2. Логика кулдауна Dash Nova
         if (_dashNovaTimer > 0) _dashNovaTimer -= Time.deltaTime;
 
+        // 3. Логика движения
         if (_isMoving && currentNode != null)
         {
-            float currentMoveSpeed = moveSpeed * moveSpeedMultiplier;
+            // СЧИТАЕМ СКОРОСТЬ С УЧЕТОМ БАФФА
+            bool isBuffActive = _buffTimer > 0;
+            float currentSpeedMult = moveSpeedMultiplier + (isBuffActive ? buffSpeedBonus : 0f);
+            float currentMoveSpeed = moveSpeed * currentSpeedMult;
+
             transform.position = Vector3.MoveTowards(transform.position, currentNode.transform.position, currentMoveSpeed * Time.deltaTime);
 
             if (Vector3.Distance(transform.position, currentNode.transform.position) < 0.01f)
@@ -72,14 +104,14 @@ public class PlayerController : MonoBehaviour
                 transform.position = currentNode.transform.position;
                 _isMoving = false;
                 UpdateAvailableNodes();
-                
-                // Сообщаем новой ноде, что мы пришли
-                currentNode.OnPlayerArrived();
+
+                // ВОТ ЭТА СТРОЧКА ПОТЕРЯЛАСЬ! Возвращаем её:
+                if (currentNode != null) currentNode.OnPlayerArrived();
 
                 if (hasDashNova && _dashNovaTimer <= 0f)
                 {
                     FireDashNova();
-                    _dashNovaTimer = dashNovaCooldown;
+                    _dashNovaTimer = dashNovaCooldown; 
                 }
             }
         }
@@ -109,10 +141,17 @@ public class PlayerController : MonoBehaviour
 
             if (proj != null)
             {
+                bool isBuffActive = _buffTimer > 0;
+
+                // УРОН С УЧЕТОМ БАФФА
                 int baseDamage = Random.Range(minDamage, maxDamage + 1);
-                int scaledDamage = Mathf.RoundToInt(baseDamage * damageMultiplier);
+                float currentDmgMult = damageMultiplier + (isBuffActive ? buffDamageBonus : 0f);
+                int scaledDamage = Mathf.RoundToInt(baseDamage * currentDmgMult);
                 
-                bool isCrit = Random.value * 100f < critChance;
+                // КРИТ С УЧЕТОМ БАФФА
+                float currentCrit = critChance + (isBuffActive ? buffCritBonus : 0f);
+                bool isCrit = Random.value * 100f < currentCrit;
+                
                 int finalDamage = isCrit ? scaledDamage * 2 : scaledDamage;
 
                 proj.speed = projectileSpeed;
@@ -120,14 +159,9 @@ public class PlayerController : MonoBehaviour
                 proj.damage = finalDamage;
                 proj.isCrit = isCrit;
 
-                // Случайный разброс для КАЖДОЙ пули от -spreadAngle до +spreadAngle
                 float randomAngleOffset = 0f;
-                if (spreadAngle > 0f)
-                {
-                    randomAngleOffset = Random.Range(-spreadAngle, spreadAngle);
-                }
+                if (spreadAngle > 0f) randomAngleOffset = Random.Range(-spreadAngle, spreadAngle);
 
-                // Передаем координаты и случайный угол
                 proj.Launch(currentTargetPos, randomAngleOffset);
             }
 
@@ -220,10 +254,37 @@ public class PlayerController : MonoBehaviour
     {
         if (_isDead) return;
         _isDead = true;
+        
+        // Выключаем фоновую музыку
+        if (AudioManager.Instance != null) AudioManager.Instance.StopMusic();
+
         if (UIManager.Instance != null && ProgressionManager.Instance != null)
         {
             UIManager.Instance.ShowGameOver(ProgressionManager.Instance.totalScore);
         }
+    }
+    
+    // Для Аптечки
+    public void Heal(int amount)
+    {
+        _currentHealth += amount;
+        if (_currentHealth > maxHealth) _currentHealth = maxHealth;
+        // Здесь позже добавим обновление UI Хелсбара игрока
+    }
+
+    // Для Бонуса (Пока просто заглушка, таймер и логику множителей добавим на следующем шаге!)
+    public void ActivateTemporaryBuff(float duration)
+    {
+        _buffTimer = duration;
+        _buffDuration = duration;
+        
+        if (buffIconObject != null)
+        {
+            buffIconObject.SetActive(true);
+        }
+        
+        // Опционально: можно добавить визуальный эффект (Particle System) свечения на самом игроке
+        Debug.Log($"Бонус активирован! Урон, скорость и крит временно повышены на {duration} сек.");
     }
 
     public int GetCurrentHealth() => _currentHealth;
